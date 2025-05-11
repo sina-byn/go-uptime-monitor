@@ -57,6 +57,21 @@ func ReadLog(id uint) *Log {
 	return &log
 }
 
+func ReadLogs() map[string][]Log {
+	var logs []Log
+	groupedLogs := make(map[string][]Log)
+
+	if err := DB.Group("project").Find(&logs).Error; err != nil {
+		fmt.Println(err)
+	}
+
+	for _, log := range(logs) {
+		groupedLogs[log.Project] = append(groupedLogs[log.Project], log)
+	}
+	
+	return groupedLogs
+}
+
 func ReadProjectLogs(project string) []Log {
 	var logs []Log
 
