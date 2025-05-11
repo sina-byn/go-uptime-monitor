@@ -10,12 +10,12 @@ import (
 )
 
 type Log struct {
-	ID uint `gorm:"primaryKey"`
-	Project string
-	Status uint
-	Message string
+	ID        uint `gorm:"primaryKey"`
+	Project   string
+	Status    int
+	Message   string
 	CreatedAt time.Time `gorm:"autoCreateTime"`
-};
+}
 
 var DB *gorm.DB
 
@@ -35,7 +35,7 @@ func InitDB() {
 
 func CreateLog(log Log) {
 	result := DB.Create(&log)
-	
+
 	if result.Error != nil {
 		fmt.Println(result.Error)
 	}
@@ -60,15 +60,20 @@ func ReadLog(id uint) *Log {
 func ReadLogs() map[string][]Log {
 	var logs []Log
 	groupedLogs := make(map[string][]Log)
+	oneHourAgo := time.Now().Add(-1 * time.Hour)
 
-	if err := DB.Group("project").Find(&logs).Error; err != nil {
+	if err := DB.Find(&logs).Error; err != nil {
 		fmt.Println(err)
 	}
 
-	for _, log := range(logs) {
+	for _, log := range logs {
+		if log.CreatedAt.Before(oneHourAgo) || len(groupedLogs[log.Project]) == 60 {
+			continue
+		}
+
 		groupedLogs[log.Project] = append(groupedLogs[log.Project], log)
 	}
-	
+
 	return groupedLogs
 }
 
@@ -80,4 +85,14 @@ func ReadProjectLogs(project string) []Log {
 	}
 
 	return logs
+}
+
+func CleanupLogs() {
+	result := DB.Where("created_at < datetime('now', '-1 hour')").Delete(&Log{})
+
+	if result.Error != nil {
+		log.Printf("[CRON] Failed to delete old logs: %v", result.Error)
+	} else {
+		log.Printf("[CRON] Deleted %d old logs", result.RowsAffected)
+	}
 }
