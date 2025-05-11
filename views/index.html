@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ .Title }}</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body class="grid grid-rows-[1fr_auto] h-dvh">
+    <main class="flex flex-col items-center gap-y-10 overflow-y-auto pt-10 px-4 last:mb-10">
+      {{ range $key, $value := .Logs }}
+      <div>
+        <h3 class="font-semibold uppercase mb-2">{{ $key }}</h3>
+
+        <ul class="flex gap-x-1">
+          {{ range $log := $value }}
+          <li>
+            <div
+              title="{{ $log.Status }} - {{ $log.Message }} - {{ $log.CreatedAt}}"
+              class="record shrink-0 w-2 h-16 rounded-lg {{ if eq $log.Status 200 }} bg-green-300 {{ else }} bg-red-500 {{ end }}"
+            ></div>
+          </li>
+          {{ end }}
+        </ul>
+      </div>
+      {{ end }}
+    </main>
+
+    <footer class="text-neutral-500 border-t border-neutral-300 py-2 px-4">
+      <time></time>
+    </footer>
+
+    <script src="/htmx.min.js"></script>
+
+    <script>
+      const dateTimeOptions = {
+        day: 'numeric',
+        month: 'long',
+        year: '2-digit',
+        minute: '2-digit',
+        hour: '2-digit',
+      };
+
+      const timeOptions = { hour12: false, hourCycle: 'h24' };
+
+      const lastUpdatedTag = document.querySelector('footer time');
+
+      // * set last-updated time
+      lastUpdatedTag.textContent = new Date().toLocaleDateString('en-US', dateTimeOptions);
+
+      const records = document.querySelectorAll('.record');
+
+      // * format the title's CreatedAt time format
+      records.forEach(record => {
+        const titleChunks = record.title.trim().split(/\s*-\s*/);
+        const createdAt = new Date(titleChunks.pop());
+
+        titleChunks.push(createdAt.toLocaleTimeString('en-US', timeOptions));
+        record.title = titleChunks.join(' - ');
+      });
+
+      // * automatically refresh the page every minute to get the latest data
+      setInterval(() => {
+        window.location.reload();
+      }, 60_000);
+    </script>
+  </body>
+</html>
