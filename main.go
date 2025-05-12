@@ -12,6 +12,8 @@ import (
 
 func main() {
 	engine := html.New("./views", ".html")
+	engine.Reload(true)
+
 	app := fiber.New(fiber.Config{Views: engine})
 
 	app.Static("/", "./public")
@@ -21,27 +23,45 @@ func main() {
 		return c.Render("index", fiber.Map{"Logs": logs})
 	})
 
+	app.Post("/project", func(c *fiber.Ctx) error {
+		project := db.Project{}
+
+		if err := c.BodyParser(&project); err != nil {
+			return err
+		}
+
+		db.CreateProject(project)
+
+		return c.Status(http.StatusCreated).JSON(fiber.Map{"message": "project added"})
+	})
+
 	c := cron.New()
 
-	c.AddFunc("*/1 * * * *", func() {
+	c.AddFunc("0 0 1 * *", func() {
 		db.CleanupLogs()
 	})
 
-	c.AddFunc("*/1 * * * *", func() {
-		resp, err := http.Get("https://aia.tools")
-		log := db.Log{Project: "aia"}
+	c.AddFunc("* * * * *", func() {
+		proejcts := db.ReadProjects()
 
-		if err != nil {
-			log.Message = "Failed"
-			log.Status = 500
+		for _, project := range proejcts {
+			go func() {
+				resp, err := http.Get(project.Url)
+				log := db.Log{Project: project.Name}
 
-			fmt.Println(err)
-		} else {
-			log.Message = resp.Status
-			log.Status = resp.StatusCode
+				if err != nil {
+					log.Message = err.Error()
+					log.Status = 500
+
+					fmt.Println(err)
+				} else {
+					log.Message = "Success"
+					log.Status = resp.StatusCode
+				}
+
+				db.CreateLog(log)
+			}()
 		}
-
-		db.CreateLog(log)
 	})
 
 	db.InitDB()
