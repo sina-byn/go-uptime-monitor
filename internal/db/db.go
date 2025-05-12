@@ -17,6 +17,13 @@ type Log struct {
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
+type Project struct {
+	ID        uint   `gorm:"primaryKey"`
+	Name      string `gorm:"unique"`
+	Url       string
+	CreatedAt time.Time `gorm:"autoCreateTime"`
+}
+
 var DB *gorm.DB
 
 func InitDB() {
@@ -28,6 +35,11 @@ func InitDB() {
 	DB = db
 
 	err = db.AutoMigrate(&Log{})
+	if err != nil {
+		log.Fatalf("failed to migrate to schema")
+	}
+
+	err = db.AutoMigrate(&Project{})
 	if err != nil {
 		log.Fatalf("failed to migrate to schema")
 	}
@@ -95,4 +107,22 @@ func CleanupLogs() {
 	} else {
 		log.Printf("[CRON] Deleted %d old logs", result.RowsAffected)
 	}
+}
+
+func CreateProject(project Project) {
+	result := DB.Create(&project)
+
+	if result.Error != nil {
+		fmt.Println(result.Error)
+	}
+}
+
+func ReadProjects() []Project {
+	var projects []Project
+
+	if err := DB.Find(&projects).Error; err != nil {
+		fmt.Println(err)
+	}
+
+	return projects
 }
